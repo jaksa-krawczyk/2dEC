@@ -20,10 +20,10 @@ public:
 	{
 	}
 
-	void initializeWorld()
+	bool initializeWorld()
 	{
 		physicsEngine.generateStartValues();
-		renderer.initialize();
+		return renderer.initialize();
 	}
 
 	void run()

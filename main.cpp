@@ -4,8 +4,10 @@ int main()
 {
 	World<800, 640> world;
 
-	world.initializeWorld();
-	world.run();
+	if (world.initializeWorld())
+	{
+		world.run();
+	}
 
 	return 0;
 }
