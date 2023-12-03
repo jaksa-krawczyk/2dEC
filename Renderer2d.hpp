@@ -91,8 +91,8 @@ private:
 			for (std::uint32_t i = 0; i < TRIANGLES_PER_CIRCLE; ++i)
 			{
 				float currentAngle = i * angle;
-				float x = radius_x * cosf(currentAngle) - x_center;
-				float y = radius_y * sinf(currentAngle) - y_center;
+				float x = radius_x * cosf(currentAngle) + x_center;
+				float y = radius_y * sinf(currentAngle) + y_center;
 
 				circleVerticies.push_back(glm::vec2(x, y));
 			}
