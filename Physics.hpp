@@ -2,6 +2,7 @@
 #define PHYSICS_HPP
 
 #include "Constants.hpp"
+#include "Grid.hpp"
 
 #include <glm/vec2.hpp>
 #include <glm/geometric.hpp>
@@ -18,8 +19,11 @@ class Physics
 private:
 	PosArrType& positions;
 	VelArrType& velocities;
+
 	const std::uint32_t xMax;
 	const std::uint32_t yMax;
+
+	Grid2d grid;
 
 	void checkXCollisions(const std::uint32_t i) noexcept
 	{
@@ -98,24 +102,34 @@ private:
 		positions[j] += deltaT * velocities[j];
 	}
 
-	void resolveConflicts() noexcept
+	void resolveCellConflicts(auto& cellParticles)
 	{
-		for (std::uint32_t i = 0; i < positions.size() - 1; ++i)
+		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
 		{
-			for (std::uint32_t j = i + 1; j < positions.size(); ++j)
+			for (std::uint32_t j = 0; j < cellParticles.size(); ++j)
 			{
-				if (glm::distance(positions[i], positions[j]) < 2.f * CIRCLE_RADIUS)
+				if (i != j && glm::distance(positions[cellParticles[i].particleId], positions[cellParticles[j].particleId]) < 2.f * CIRCLE_RADIUS)
 				{
-					updateAfterCollision(i, j);
+					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId);
 				}
 			}
 		}
+	}
+
+	void resolveConflicts() noexcept
+	{
+		auto& gridCells = grid.getGridCells();
+
+		for (auto& cell : gridCells)
+		{
+			resolveCellConflicts(cell);
+		}
+
 		resolveBoundaryCollisions();
 	}
 
 public:
-	Physics(PosArrType& positions_, VelArrType& velocities_, const std::uint32_t xMax_, const std::uint32_t yMax_) noexcept : positions(positions_), velocities(velocities_),
-		xMax(xMax_), yMax(yMax_)
+	Physics(PosArrType& positions_, VelArrType& velocities_, const std::uint32_t xMax_, const std::uint32_t yMax_) noexcept : positions(positions_), velocities(velocities_), xMax(xMax_), yMax(yMax_), grid(xMax, yMax)
 	{
 	}
 
@@ -155,13 +169,17 @@ public:
 			velocity.x = velXDistr(engine);
 			velocity.y = velYDistr(engine);
 		}
+
+		grid.initializeGrid();
 	}
 
 	void doIteration() noexcept
 	{
+		grid.clearGridCells();
 		for (std::uint32_t i = 0; i < positions.size(); ++i)
 		{
 			positions[i] += deltaT * velocities[i];
+			grid.addParticleToGridCell(i, positions[i]);
 		}
 
 		resolveConflicts();

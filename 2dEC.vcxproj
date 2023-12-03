@@ -136,11 +136,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Shaders.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Constants.hpp" />
+    <ClInclude Include="Grid.hpp" />
     <ClInclude Include="Physics.hpp" />
     <ClInclude Include="Renderer2d.hpp" />
     <ClInclude Include="Shaders.hpp" />
