@@ -7,12 +7,17 @@
 #include <vector>
 #include <array>
 #include <set>
-#include <optional>
 
 struct ParticleCellInfo
 {
 	std::uint32_t particleId = 0;
 	ParticleCellInfo(const std::uint32_t i) noexcept : particleId(i) {}
+};
+
+struct CellId
+{
+	std::uint32_t xCellId = 0;
+	std::uint32_t yCellId = 0;
 };
 
 enum class Corners
@@ -51,6 +56,8 @@ public:
 	void initializeGrid();
 	void addParticleToGridCell(const std::uint32_t i, const glm::vec2 position);
 	void clearGridCells();
+
+	CellId getParticleCellId(const glm::vec2 position);
 
 	GridCellsT& getGridCells()
 	{

@@ -25,71 +25,118 @@ private:
 
 	Grid2d grid;
 
-	void checkXCollisions(const std::uint32_t i) noexcept
+	void checkXCollisions(const std::uint32_t i, const float deltaSubStep) noexcept
 	{
 		if (positions[i].x <= CIRCLE_RADIUS)
 		{
-			positions[i] -= deltaT * velocities[i];
+			positions[i] -= deltaSubStep * velocities[i];
 
-			float deltaTBoundary = (CIRCLE_RADIUS - positions[i].x) / velocities[i].x;
-			float deltaTReflection = deltaT - deltaTBoundary;
+			float deltaSubStepTBoundary = (CIRCLE_RADIUS - positions[i].x) / velocities[i].x;
+			float deltaSubStepTReflection = deltaSubStep - deltaSubStepTBoundary;
 
 			velocities[i].x = -velocities[i].x;
 			positions[i].x = CIRCLE_RADIUS;
-			positions[i] += deltaTReflection * velocities[i];
+			positions[i] += deltaSubStepTReflection * velocities[i];
 		}
 		else if (positions[i].x >= xMax - CIRCLE_RADIUS)
 		{
-			positions[i] -= deltaT * velocities[i];
+			positions[i] -= deltaSubStep * velocities[i];
 
-			float deltaTBoundary = (xMax - CIRCLE_RADIUS - positions[i].x) / velocities[i].x;
-			float deltaTReflection = deltaT - deltaTBoundary;
+			float deltaSubStepTBoundary = (xMax - CIRCLE_RADIUS - positions[i].x) / velocities[i].x;
+			float deltaSubStepTReflection = deltaSubStep - deltaSubStepTBoundary;
 
 			velocities[i].x = -velocities[i].x;
 			positions[i].x = static_cast<float>(xMax - CIRCLE_RADIUS);
-			positions[i] += deltaTReflection * velocities[i];
+			positions[i] += deltaSubStepTReflection * velocities[i];
 		}
 	}
 
-	void checkYCollisions(const std::uint32_t i) noexcept
+	void checkYCollisions(const std::uint32_t i, const float deltaSubStep) noexcept
 	{
 		if (positions[i].y <= CIRCLE_RADIUS)
 		{
-			positions[i] -= deltaT * velocities[i];
+			positions[i] -= deltaSubStep * velocities[i];
 
-			float deltaTBoundary = (CIRCLE_RADIUS - positions[i].y) / velocities[i].y;
-			float deltaTReflection = deltaT - deltaTBoundary;
+			float deltaSubStepTBoundary = (CIRCLE_RADIUS - positions[i].y) / velocities[i].y;
+			float deltaSubStepTReflection = deltaSubStep - deltaSubStepTBoundary;
 
 			velocities[i].y = -velocities[i].y;
 			positions[i].y = CIRCLE_RADIUS;
-			positions[i] += deltaTReflection * velocities[i];
+			positions[i] += deltaSubStepTReflection * velocities[i];
 		}
 		else if (positions[i].y >= yMax - CIRCLE_RADIUS)
 		{
-			positions[i] -= deltaT * velocities[i];
+			positions[i] -= deltaSubStep * velocities[i];
 
-			float deltaTBoundary = (yMax - CIRCLE_RADIUS - positions[i].y) / velocities[i].y;
-			float deltaTReflection = deltaT - deltaTBoundary;
+			float deltaSubStepTBoundary = (yMax - CIRCLE_RADIUS - positions[i].y) / velocities[i].y;
+			float deltaSubStepTReflection = deltaSubStep - deltaSubStepTBoundary;
 
 			velocities[i].y = -velocities[i].y;
 			positions[i].y = static_cast<float>(yMax - CIRCLE_RADIUS);
-			positions[i] += deltaTReflection * velocities[i];
+			positions[i] += deltaSubStepTReflection * velocities[i];
 		}
 	}
 
-	void resolveBoundaryCollisions() noexcept
+	void resolveBoundaryCollisions(const float deltaSubStep) noexcept
 	{
 		for (std::uint32_t i = 0; i < positions.size(); ++i)
 		{
-			checkXCollisions(i);
-			checkYCollisions(i);
+			checkXCollisions(i, deltaSubStep);
+			checkYCollisions(i, deltaSubStep);
 		}
 	}
 
-	void updateAfterCollision(const std::uint32_t i, const std::uint32_t j) noexcept
+	float getCollisionTime(const glm::vec2 relativePosition, const glm::vec2 relativePositionPrev, const glm::vec2 relativeVelocity) noexcept
 	{
-		positions[i] -= deltaT * velocities[i];
-		positions[j] -= deltaT * velocities[j];
+		float aLin = (relativePosition.y - relativePositionPrev.y) / (relativePosition.x - relativePositionPrev.x);
+		float bLin = relativePosition.y - aLin * relativePosition.x;
+
+		float aQuad = 1.f + aLin * aLin;
+		float deltaQuad = 4.f * (4.f * CIRCLE_RADIUS * CIRCLE_RADIUS * aQuad - bLin * bLin);
+
+		float bQuad = 2.f * aLin * bLin;
+		float x1 = (-bQuad - sqrtf(deltaQuad)) / (2.f * aQuad);
+		float x2 = (-bQuad + sqrtf(deltaQuad)) / (2.f * aQuad);
+		float y1 = aLin * x1 + bLin;
+		float y2 = aLin * x2 + bLin;
+
+		glm::vec2 v1(x1, y1);
+		glm::vec2 v2(x2, y2);
+
+		float t1 = glm::distance(v1, relativePosition) / glm::length(relativeVelocity);
+		float t2 = glm::distance(v2, relativePosition) / glm::length(relativeVelocity);
+
+		auto pos1 = relativePosition - t1 * relativeVelocity;
+		auto pos2 = relativePosition - t2 * relativeVelocity;
+
+		constexpr glm::vec2 posJ(0.f, 0.f);
+		if (fabs(glm::distance(pos1, posJ) - 2.f * CIRCLE_RADIUS) < fabs(glm::distance(pos2, posJ) - 2.f * CIRCLE_RADIUS))
+		{
+			return t1;
+		}
+		return t2;
+	}
+
+	void updateAfterCollision(const std::uint32_t i, const std::uint32_t j, const float deltaSubStep) noexcept
+	{
+		auto relativePosition = positions[i] - positions[j];
+		auto relativeVelocity = velocities[i] - velocities[j];
+		auto relativePositionPrev = relativePosition - deltaSubStep * relativeVelocity;
+
+		float collisionTime = getCollisionTime(relativePosition, relativePositionPrev, relativeVelocity);
+
+		if (collisionTime > deltaSubStep) //workaround for situation when collision were no resolved frame earlier frame,
+		{						          //it means that in this frame particle moved "inside" other particle, without this if, I get weird
+			collisionTime = deltaSubStep; // glitches and particles teleporting or even crash for higher particles densities, still requires work and better solution
+		}
+		positions[i] -= collisionTime * velocities[i];
+		positions[j] -= collisionTime * velocities[j];
+
+		float afterCollisionTime = deltaSubStep;
+		if(deltaSubStep > collisionTime)
+		{
+			afterCollisionTime = deltaSubStep - collisionTime;
+		}
 
 		auto velocity_i = velocities[i];
 		auto diffPos_ij = positions[i] - positions[j];
@@ -98,11 +145,11 @@ private:
 		velocities[i] -= glm::dot((velocities[i] - velocities[j]), diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
 		velocities[j] += glm::dot((velocities[j] - velocity_i), -diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
 
-		positions[i] += deltaT * velocities[i];
-		positions[j] += deltaT * velocities[j];
+		positions[i] += afterCollisionTime * velocities[i];
+		positions[j] += afterCollisionTime * velocities[j];
 	}
 
-	void resolveCellConflicts(auto& cellParticles)
+	void resolveCellConflicts(auto& cellParticles, const float deltaSubStep)
 	{
 		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
 		{
@@ -110,22 +157,22 @@ private:
 			{
 				if (i != j && glm::distance(positions[cellParticles[i].particleId], positions[cellParticles[j].particleId]) < 2.f * CIRCLE_RADIUS)
 				{
-					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId);
+					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId, deltaSubStep);
 				}
 			}
 		}
 	}
 
-	void resolveConflicts() noexcept
+	void resolveConflicts(const float deltaSubStep) noexcept
 	{
 		auto& gridCells = grid.getGridCells();
 
 		for (auto& cell : gridCells)
 		{
-			resolveCellConflicts(cell);
+			resolveCellConflicts(cell, deltaSubStep);
 		}
 
-		resolveBoundaryCollisions();
+		resolveBoundaryCollisions(deltaSubStep);
 	}
 
 public:
@@ -175,14 +222,20 @@ public:
 
 	void doIteration() noexcept
 	{
-		grid.clearGridCells();
-		for (std::uint32_t i = 0; i < positions.size(); ++i)
-		{
-			positions[i] += deltaT * velocities[i];
-			grid.addParticleToGridCell(i, positions[i]);
-		}
+		std::uint32_t subStepsCount = 5;
+		const float deltaSubStep = DELTA_T / subStepsCount;
 
-		resolveConflicts();
+		while (subStepsCount--)
+		{
+			grid.clearGridCells();
+			for (std::uint32_t i = 0; i < positions.size(); ++i)
+			{
+				positions[i] += deltaSubStep * velocities[i];
+				grid.addParticleToGridCell(i, positions[i]);
+			}
+
+			resolveConflicts(deltaSubStep);
+		}
 	}
 };
 #endif

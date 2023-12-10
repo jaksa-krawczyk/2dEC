@@ -129,12 +129,11 @@ void Grid2d::initializeGrid()
 
 void Grid2d::addParticleToGridCell(const std::uint32_t i, const glm::vec2 position)
 {
-	const std::uint32_t xCellId = static_cast<std::uint32_t>(position.x / xLen);
-	const std::uint32_t yCellId = static_cast<std::uint32_t>(position.y / yLen) * GRID_CELLS_PER_AXIS;
-	const std::uint32_t cellId = xCellId + yCellId;
+	CellId id = getParticleCellId(position);
+	const std::uint32_t cellId = id.xCellId + id.yCellId;
 	gridCells[cellId].emplace_back(i);
 
-	if (auto adjacentCells = getNeighboringCells(position, xCellId, yCellId); adjacentCells.size())
+	if (auto adjacentCells = getNeighboringCells(position, id.xCellId, id.yCellId); adjacentCells.size())
 	{
 		for (const auto adjCellId : adjacentCells)
 		{
@@ -149,4 +148,11 @@ void Grid2d::clearGridCells()
 	{
 		cell.clear();
 	}
+}
+
+CellId Grid2d::getParticleCellId(const glm::vec2 position)
+{
+	const std::uint32_t xCellId = static_cast<std::uint32_t>(position.x / xLen);
+	const std::uint32_t yCellId = static_cast<std::uint32_t>(position.y / yLen) * GRID_CELLS_PER_AXIS;
+	return {xCellId, yCellId};
 }
