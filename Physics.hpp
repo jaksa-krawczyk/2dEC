@@ -19,11 +19,10 @@ class Physics
 private:
 	PosArrType& positions;
 	VelArrType& velocities;
+	Grid2d grid;
 
 	const std::uint32_t xMax;
 	const std::uint32_t yMax;
-
-	Grid2d grid;
 
 	void checkXCollisions(const std::uint32_t i, const float deltaSubStep) noexcept
 	{
@@ -117,7 +116,53 @@ private:
 		return t2;
 	}
 
-	void updateAfterCollision(const std::uint32_t i, const std::uint32_t j, const float deltaSubStep) noexcept
+	glm::vec2 solveDistQuadratic(const glm::vec2 reference, const float distance) noexcept
+	{
+		float aLin = reference.y / reference.x;
+		float aQuad = 1.f + aLin * aLin;
+		float cQuad = distance * distance;
+		float x1 = sqrtf(cQuad / aQuad);
+
+		return {x1, aLin * x1};
+	}
+
+	void moveAlongsideCenterLine(glm::vec2& posI, glm::vec2& posJ, const float penetrationLength) noexcept
+	{
+		float distanceToMove = CIRCLE_RADIUS - penetrationLength / 2.f;
+		glm::vec2 posICorrection = solveDistQuadratic(posJ - posI, distanceToMove);
+		glm::vec2 posJCorrection = solveDistQuadratic(posI - posJ, distanceToMove);
+
+		glm::vec2 tmp = posI;
+		if (glm::distance(posJ, posICorrection + posI) > glm::distance(posJ, posI - posICorrection))
+		{
+			posI += posICorrection;
+		}
+		else
+		{
+			posI -= posICorrection;
+		}
+
+		if (glm::distance(tmp, posJCorrection + posJ) > glm::distance(tmp, posJ - posJCorrection))
+		{
+			posJ += posJCorrection;
+		}
+		else
+		{
+			posJ -= posJCorrection;
+		}
+	}
+
+	void updateNewVelocities(const std::uint32_t i, const std::uint32_t j) noexcept
+	{
+		auto velocity_i = velocities[i];
+		auto diffPos_ij = positions[i] - positions[j];
+		auto lengthDiffPos_ij = glm::length(positions[i] - positions[j]);
+
+		velocities[i] -= glm::dot((velocities[i] - velocities[j]), diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
+		velocities[j] += glm::dot((velocities[j] - velocity_i), -diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
+	}
+
+	void updateAfterCollision(const std::uint32_t i, const std::uint32_t j, const float deltaSubStep, const float penetrationLength) noexcept
 	{
 		auto relativePosition = positions[i] - positions[j];
 		auto relativeVelocity = velocities[i] - velocities[j];
@@ -125,39 +170,31 @@ private:
 
 		float collisionTime = getCollisionTime(relativePosition, relativePositionPrev, relativeVelocity);
 
-		if (collisionTime > deltaSubStep) //workaround for situation when collision were no resolved frame earlier frame,
-		{						          //it means that in this frame particle moved "inside" other particle, without this if, I get weird
-			collisionTime = deltaSubStep; // glitches and particles teleporting or even crash for higher particles densities, still requires work and better solution
+		if (collisionTime > deltaSubStep)
+		{
+			moveAlongsideCenterLine(positions[i], positions[j], penetrationLength);
+			updateNewVelocities(i, j);
+			return;
 		}
 		positions[i] -= collisionTime * velocities[i];
 		positions[j] -= collisionTime * velocities[j];
 
-		float afterCollisionTime = deltaSubStep;
-		if(deltaSubStep > collisionTime)
-		{
-			afterCollisionTime = deltaSubStep - collisionTime;
-		}
+		updateNewVelocities(i, j);
 
-		auto velocity_i = velocities[i];
-		auto diffPos_ij = positions[i] - positions[j];
-		auto lengthDiffPos_ij = glm::length(positions[i] - positions[j]);
-
-		velocities[i] -= glm::dot((velocities[i] - velocities[j]), diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
-		velocities[j] += glm::dot((velocities[j] - velocity_i), -diffPos_ij) / (lengthDiffPos_ij * lengthDiffPos_ij) * diffPos_ij;
-
+		float afterCollisionTime = deltaSubStep - collisionTime;
 		positions[i] += afterCollisionTime * velocities[i];
 		positions[j] += afterCollisionTime * velocities[j];
 	}
 
-	void resolveCellConflicts(auto& cellParticles, const float deltaSubStep)
+	void resolveCellConflicts(auto& cellParticles, const float deltaSubStep) noexcept
 	{
 		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
 		{
 			for (std::uint32_t j = 0; j < cellParticles.size(); ++j)
 			{
-				if (i != j && glm::distance(positions[cellParticles[i].particleId], positions[cellParticles[j].particleId]) < 2.f * CIRCLE_RADIUS)
+				if (float d = glm::distance(positions[cellParticles[i].particleId], positions[cellParticles[j].particleId]); i != j && d < 2.f * CIRCLE_RADIUS)
 				{
-					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId, deltaSubStep);
+					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId, deltaSubStep, d);
 				}
 			}
 		}
@@ -196,7 +233,7 @@ public:
 		{
 			++i;
 			auto temp = glm::vec2(posXDistr(engine), posYDistr(engine));
-			if (tempVec.cend() == std::find_if(tempVec.cbegin(), tempVec.cend(), [&temp](const glm::vec2& vec) {return glm::distance(temp, vec) <= 2.f * CIRCLE_RADIUS; }))
+			if (tempVec.cend() == std::find_if(tempVec.cbegin(), tempVec.cend(), [&temp](const glm::vec2& vec) {return glm::distance(temp, vec) < 1.f * CIRCLE_RADIUS;}))
 			{
 				tempVec.push_back(temp);
 			}
