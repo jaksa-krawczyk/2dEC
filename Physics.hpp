@@ -19,10 +19,11 @@ class Physics
 private:
 	PosArrType& positions;
 	VelArrType& velocities;
-	Grid2d grid;
 
 	const std::uint32_t xMax;
 	const std::uint32_t yMax;
+
+	Grid2d grid;
 
 	void checkXCollisions(const std::uint32_t i, const float deltaSubStep) noexcept
 	{
@@ -76,12 +77,12 @@ private:
 		}
 	}
 
-	void resolveBoundaryCollisions(const float deltaSubStep) noexcept
+	void resolveCellBoundary(auto& cellParticles, const float deltaSubStep) noexcept
 	{
-		for (std::uint32_t i = 0; i < positions.size(); ++i)
+		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
 		{
-			checkXCollisions(i, deltaSubStep);
-			checkYCollisions(i, deltaSubStep);
+			checkXCollisions(cellParticles[i], deltaSubStep);
+			checkYCollisions(cellParticles[i], deltaSubStep);
 		}
 	}
 
@@ -192,9 +193,9 @@ private:
 		{
 			for (std::uint32_t j = 0; j < cellParticles.size(); ++j)
 			{
-				if (float d = glm::distance(positions[cellParticles[i].particleId], positions[cellParticles[j].particleId]); i != j && d < 2.f * CIRCLE_RADIUS)
+				if (float d = glm::distance(positions[cellParticles[i]], positions[cellParticles[j]]); i != j && d < 2.f * CIRCLE_RADIUS)
 				{
-					updateAfterCollision(cellParticles[i].particleId, cellParticles[j].particleId, deltaSubStep, d);
+					updateAfterCollision(cellParticles[i], cellParticles[j], deltaSubStep, d);
 				}
 			}
 		}
@@ -209,7 +210,10 @@ private:
 			resolveCellConflicts(cell, deltaSubStep);
 		}
 
-		resolveBoundaryCollisions(deltaSubStep);
+		for (auto borderCellId : grid.getBorderCellsIds())
+		{
+			resolveCellBoundary(gridCells[borderCellId], deltaSubStep);
+		}
 	}
 
 public:
@@ -233,7 +237,7 @@ public:
 		{
 			++i;
 			auto temp = glm::vec2(posXDistr(engine), posYDistr(engine));
-			if (tempVec.cend() == std::find_if(tempVec.cbegin(), tempVec.cend(), [&temp](const glm::vec2& vec) {return glm::distance(temp, vec) < 1.f * CIRCLE_RADIUS;}))
+			if (tempVec.cend() == std::find_if(tempVec.cbegin(), tempVec.cend(), [&temp](const glm::vec2& vec) {return glm::distance(temp, vec) < 2.f * CIRCLE_RADIUS;}))
 			{
 				tempVec.push_back(temp);
 			}

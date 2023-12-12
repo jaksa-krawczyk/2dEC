@@ -2,6 +2,7 @@
 #include <glm/geometric.hpp>
 
 #include <numbers>
+#include <algorithm>
 
 std::set<std::uint32_t> Grid2d::getNeighboringCells(const glm::vec2 position, const std::uint32_t xCellId, const std::uint32_t yCellId)
 {
@@ -44,7 +45,6 @@ std::set<std::uint32_t> Grid2d::getNeighboringCells(const glm::vec2 position, co
 	}
 	else if (position.y + CIRCLE_RADIUS > cornerVectors[cornerNeId + cellCornersI].y)
 	{
-		constexpr std::uint32_t yCellIdMax = (GRID_CELLS_PER_AXIS - 1) * GRID_CELLS_PER_AXIS;
 		if (yCellId < yCellIdMax)
 		{
 			otherCellsIds.insert(xCellId + yCellId + GRID_CELLS_PER_AXIS);
@@ -58,7 +58,6 @@ std::set<std::uint32_t> Grid2d::getAdjacentCells(const Corners corner, const std
 {
 	std::set<std::uint32_t> adjacentCells;
 
-	constexpr std::uint32_t yCellIdMax = (GRID_CELLS_PER_AXIS - 1) * GRID_CELLS_PER_AXIS;
 	switch (corner)
 	{
 		case Corners::SW:
@@ -106,6 +105,40 @@ std::set<std::uint32_t> Grid2d::getAdjacentCells(const Corners corner, const std
 	return adjacentCells;
 }
 
+void Grid2d::findBorderCellsIds()
+{
+	if (BORDER_CELLS_COUNT > 1)
+	{
+		std::uint32_t j = 0;
+		for (; j < GRID_CELLS_PER_AXIS; ++j)
+		{
+			borderCellsIds[j] = j;
+		}
+		for (std::uint32_t i = j - 1 + GRID_CELLS_PER_AXIS; i < CELL_COUNT; i += GRID_CELLS_PER_AXIS)
+		{
+			borderCellsIds[j] = i;
+			++j;
+		}
+
+		for (std::uint32_t i = CELL_COUNT - 2; i >= GRID_CELLS_PER_AXIS * (GRID_CELLS_PER_AXIS - 1); --i)
+		{
+			borderCellsIds[j] = i;
+			++j;
+		}
+		for (std::uint32_t i = CELL_COUNT - 2 * GRID_CELLS_PER_AXIS; i > 0; i -= GRID_CELLS_PER_AXIS)
+		{
+			borderCellsIds[j] = i;
+			++j;
+		}
+
+		std::sort(borderCellsIds.begin(), borderCellsIds.end());
+	}
+	else
+	{
+		borderCellsIds[0] = 0;
+	}
+}
+
 void Grid2d::initializeGrid()
 {
 	auto it = cornerVectors.begin();
@@ -121,6 +154,8 @@ void Grid2d::initializeGrid()
 		*it++ = NW;
 	}
 
+	findBorderCellsIds();
+ 
 	for (auto& cell : gridCells)
 	{
 		cell.reserve(20);
@@ -130,7 +165,7 @@ void Grid2d::initializeGrid()
 void Grid2d::addParticleToGridCell(const std::uint32_t i, const glm::vec2 position)
 {
 	CellId id = getParticleCellId(position);
-	const std::uint32_t cellId = id.xCellId + id.yCellId;
+	const std::uint16_t cellId = id.xCellId + id.yCellId;
 	gridCells[cellId].emplace_back(i);
 
 	if (auto adjacentCells = getNeighboringCells(position, id.xCellId, id.yCellId); adjacentCells.size())
@@ -152,7 +187,17 @@ void Grid2d::clearGridCells()
 
 CellId Grid2d::getParticleCellId(const glm::vec2 position)
 {
-	const std::uint32_t xCellId = static_cast<std::uint32_t>(position.x / xLen);
-	const std::uint32_t yCellId = static_cast<std::uint32_t>(position.y / yLen) * GRID_CELLS_PER_AXIS;
+	std::uint16_t xCellId = static_cast<std::uint16_t>(fabs(position.x) / xLen);
+	std::uint16_t yCellId = static_cast<std::uint16_t>(fabs(position.y) / yLen) * GRID_CELLS_PER_AXIS;
+
+	if (xCellId > GRID_CELLS_PER_AXIS - 1)
+	{
+		xCellId = GRID_CELLS_PER_AXIS - 1;
+	}
+
+	if (yCellId >= yCellIdMax)
+	{
+		yCellId = yCellIdMax;
+	}
 	return {xCellId, yCellId};
 }
