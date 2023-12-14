@@ -9,7 +9,6 @@ I used OpenGL, GLEW and GLFW for graphics.\
 glm for basic vector operations.\
 Built in VS 2022.
 ## Room for Improvement
-Better collision resolver, I have an idea for detecting exact point of collision between two circles but that hasn't been implemented yet.\
 Maybe I could add different masses.\
 It would be interesting to present the velocity distribution histogram with theoretical curve from MB distribution.
 ## Usage
