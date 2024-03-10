@@ -254,8 +254,8 @@ public:
 		std::uniform_real_distribution<float> velYDistr(vyMin, vyMax);
 		for (auto& velocity : velocities)
 		{
-			velocity.x = velXDistr(engine);
-			velocity.y = velYDistr(engine);
+			velocity.x = 25.f;// fabs(velXDistr(engine));
+			velocity.y = 0.f;// velYDistr(engine);
 		}
 
 		grid.initializeGrid();

@@ -7,6 +7,7 @@
 
 #include "Constants.hpp"
 #include "Shaders.hpp"
+#include "ImGuiHandler.hpp"
 
 #include <cstdint>
 #include <vector>
@@ -18,11 +19,12 @@ inline void glfwError(int id, const char* description)
 	std::cout << "GLFW error: " << description << "\n";
 }
 
-template<typename PosArrType>
+template<typename PosArrType, typename VelArrType>
 class Renderer2d
 {
 private:
 	const PosArrType& positions;
+	const VelArrType& velocities;
 	const std::uint32_t xMax;
 	const std::uint32_t yMax;
 
@@ -32,6 +34,8 @@ private:
 	Shaders shader;
 	std::vector<glm::vec2> circleVerticies;
 	std::vector<std::uint32_t> indices;
+
+	ImGuiHandler<VelArrType> imGuiHandler;
 
 	bool prepareBuffersAndShaders()
 	{
@@ -100,7 +104,8 @@ private:
 	}
 
 public:
-	Renderer2d(PosArrType& positions_, const std::uint32_t xMax_, const std::uint32_t yMax_) noexcept : positions(positions_), xMax(xMax_), yMax(yMax_), window(nullptr)
+	Renderer2d(const PosArrType& positions_, const VelArrType& velocities_, const std::uint32_t xMax_, const std::uint32_t yMax_) noexcept :
+		positions(positions_), velocities(velocities_), xMax(xMax_), yMax(yMax_), window(nullptr), imGuiHandler(velocities)
 	{
 	}
 
@@ -129,31 +134,36 @@ public:
 			std::cout << "glewInit() failed\n";
 			return false;
 		}
-
+		
+		imGuiHandler.initialize(window);
 		return prepareBuffersAndShaders();
 	}
 
 	void render()
 	{
+		glfwMakeContextCurrent(window);
+		glfwPollEvents();
 		translateAndMakeCircles();
 		glBufferSubData(GL_ARRAY_BUFFER, 0, 2 * sizeof(float) * circleVerticies.size(), circleVerticies.data());
 
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+		imGuiHandler.render();
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
 
-	bool isWindowActive()
+	bool isWindowActive() noexcept
 	{
 		return !glfwWindowShouldClose(window);
 	}
 
-	void cleanup()
+	void cleanup() noexcept
 	{
+		imGuiHandler.cleanup();
 		glDeleteBuffers(1, &indexBuffer);
 		glDeleteBuffers(1, &vertexBuffer);
 		glDeleteVertexArrays(1, &vertexArray);
+		glfwDestroyWindow(window);
 		glfwTerminate();
 	}
 };

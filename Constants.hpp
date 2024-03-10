@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-inline constexpr std::uint32_t CIRCLE_DENSITY = 30;
-inline constexpr std::uint32_t CIRCLE_RADIUS = 10;
+inline constexpr std::uint32_t CIRCLE_DENSITY = 20;
+inline constexpr std::uint32_t CIRCLE_RADIUS = 5;
 
 inline constexpr float vxMax = 25.f, vyMax = 25.f, vxMin = -25.f, vyMin = -25.f;
 

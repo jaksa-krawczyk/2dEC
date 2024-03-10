@@ -13,10 +13,10 @@ private:
 	std::array<glm::vec2, getBallCount(xMax, yMax)> posArr;
 	std::array<glm::vec2, getBallCount(xMax, yMax)> velArr;
 	Physics<decltype(posArr), decltype(velArr)> physicsEngine;
-	Renderer2d<decltype(posArr)> renderer;
+	Renderer2d<decltype(posArr), decltype(velArr)> renderer;
 
 public:
-	World() noexcept : physicsEngine(posArr, velArr, xMax, yMax), renderer(posArr, xMax, yMax)
+	World() noexcept : physicsEngine(posArr, velArr, xMax, yMax), renderer(posArr, velArr, xMax, yMax)
 	{
 	}
 
