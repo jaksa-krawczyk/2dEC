@@ -30,6 +30,11 @@ public:
 	{
 		while (renderer.isWindowActive())
 		{
+			if (renderer.pauseSimulation())
+			{
+				renderer.render();
+				continue;
+			}
 			physicsEngine.doIteration();
 			renderer.render();
 		}

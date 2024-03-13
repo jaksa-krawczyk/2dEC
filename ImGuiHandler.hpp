@@ -17,8 +17,16 @@ class ImGuiHandler
 		std::vector<float> yComponent;
 		std::vector<float> speed;
 
-		void velocitiesHistograms()
+		bool showHistograms = false;
+		bool pause = false;
+
+		void velocitiesHistograms() noexcept
 		{
+			if (!showHistograms)
+			{
+				return;
+			}
+
 			for (std::uint32_t i = 0; i < velocities.size(); ++i)
 			{
 				xComponent[i] = velocities[i].x;
@@ -26,35 +34,62 @@ class ImGuiHandler
 				speed[i] = glm::length(velocities[i]);
 			}
 
-			ImGui::Begin("Velocities histograms");
+			static int componentsBins = 30;
+			ImGui::SetNextWindowSize(ImVec2(550, 700), ImGuiCond_Appearing);
+			ImGui::Begin("Velocities histograms", &showHistograms);
+			ImGui::SliderInt("Nr of component bins", &componentsBins, 10, 100);
 			if (ImPlot::BeginPlot("##VelocitiesHist"))
 			{
 				ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoTickLabels);
 				ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5f);
-				ImPlot::PlotHistogram("x-component", xComponent.data(), velocities.size(), 50, 1, ImPlotRange(-75.f, 75.f));
-				ImPlot::PlotHistogram("y-component", yComponent.data(), velocities.size(), 50, 1, ImPlotRange(-75.f, 75.f));
+				ImPlot::PlotHistogram("x-component", xComponent.data(), velocities.size(), componentsBins, 1, ImPlotRange(), ImPlotHistogramFlags_Density);
+				ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5f);
+				ImPlot::PlotHistogram("y-component", yComponent.data(), velocities.size(), componentsBins, 1, ImPlotRange(), ImPlotHistogramFlags_Density);
 				ImPlot::EndPlot();
 			}
-
+			static int speedBins = 30;
+			ImGui::SliderInt("Nr of speed bins", &speedBins, 10, 100);
 			if (ImPlot::BeginPlot("##VelocitiesHist"))
 			{
 				ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_NoTickLabels);
 				ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5f);
-				ImPlot::PlotHistogram("speed", speed.data(), velocities.size(), 50, 1, ImPlotRange(-0.5f, 100.f));
+				ImPlot::PlotHistogram("speed", speed.data(), velocities.size(), speedBins, 1, ImPlotRange(), ImPlotHistogramFlags_Density);
 				ImPlot::EndPlot();
 			}
 			ImGui::End();
 		}
 
+		void showControlPanel() noexcept
+		{
+			ImGui::Begin("Control panel");
+			ImGui::Checkbox("Show velocity statistics", &showHistograms);
+			if (ImGui::Button("Pause simulation"))
+			{
+				pause = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Resume simulation"))
+			{
+				pause = false;
+			}
+			ImGui::Text("Simulation average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+		}
+
 	public:
-		ImGuiHandler(const VelArrType& velocities_) noexcept : velocities(velocities_)
+		ImGuiHandler(const VelArrType& velocities_) : velocities(velocities_)
 		{
 			xComponent.reserve(velocities.size());
 			yComponent.reserve(velocities.size());
 			speed.reserve(velocities.size());
 		}
 
-		bool initialize(GLFWwindow* window)
+		bool pauseSimulation() noexcept
+		{
+			return pause;
+		}
+
+		bool initialize(GLFWwindow* window) noexcept
 		{
 			ImGui::CreateContext();
 			ImPlot::CreateContext();
@@ -68,12 +103,13 @@ class ImGuiHandler
 			return true;
 		}
 
-		void render()
+		void render() noexcept
 		{
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
+			showControlPanel();
 			velocitiesHistograms();
 
 			ImGui::Render();

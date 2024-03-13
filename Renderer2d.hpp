@@ -1,5 +1,5 @@
 #ifndef RENDERER2D_HPP
-#define RNDERER2D_HPP
+#define RENDERER2D_HPP
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -139,7 +139,7 @@ public:
 		return prepareBuffersAndShaders();
 	}
 
-	void render()
+	void render() noexcept
 	{
 		glfwMakeContextCurrent(window);
 		glfwPollEvents();
@@ -165,6 +165,11 @@ public:
 		glDeleteVertexArrays(1, &vertexArray);
 		glfwDestroyWindow(window);
 		glfwTerminate();
+	}
+
+	bool pauseSimulation() noexcept
+	{
+		return imGuiHandler.pauseSimulation();
 	}
 };
 
