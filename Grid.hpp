@@ -5,67 +5,41 @@
 #include <glm/vec2.hpp>
 
 #include <vector>
-#include <array>
-#include <set>
-
-struct CellId
-{
-	std::uint16_t xCellId = 0;
-	std::uint16_t yCellId = 0;
-};
-
-enum class Corners
-{
-	SW = 0,
-	SE,
-	NE,
-	NW,
-	All
-};
-
-inline Corners& operator++(Corners& corner)
-{
-	corner = static_cast<Corners>(static_cast<std::underlying_type_t<Corners>>(corner) + 1);
-	return corner;
-}
 
 class Grid2d
 {
 private:
+	const std::uint32_t xCellsCount;
+	const std::uint32_t yCellsCount;
 	const float xLen;
 	const float yLen;
-	const std::uint32_t yCellIdMax;
 
-	std::array<glm::vec2, 4 * CELL_COUNT> cornerVectors;
-	using GridCellsT = std::array<std::vector<std::uint16_t>, CELL_COUNT>;
+	using GridCellsT = std::vector<std::vector<std::uint32_t>>;
 	GridCellsT gridCells;
-
-	using BorderCellsIdsT = std::array<std::uint32_t, BORDER_CELLS_COUNT>;
-	BorderCellsIdsT borderCellsIds;
-
-	void findBorderCellsIds();
-	std::set<std::uint32_t> getNeighboringCells(const glm::vec2 position, const std::uint32_t xCellId, const std::uint32_t yCellId);
-	std::set<std::uint32_t> getAdjacentCells(const Corners corner, const std::uint32_t xCellId, const std::uint32_t yCellId);
-	CellId getParticleCellId(const glm::vec2 position);
 
 public:
 	Grid2d(const std::uint32_t xMax, const std::uint32_t yMax) noexcept : 
-		xLen(static_cast<float>(xMax) / static_cast<float>(GRID_CELLS_PER_AXIS)), 
-		yLen(static_cast<float>(yMax) / static_cast<float>(GRID_CELLS_PER_AXIS)),
-		yCellIdMax((GRID_CELLS_PER_AXIS - 1) * GRID_CELLS_PER_AXIS){}
+		xCellsCount((xMax) / (2 * CIRCLE_RADIUS)), yCellsCount((yMax) / (2 * CIRCLE_RADIUS)),
+		xLen(static_cast<float>(xMax) / static_cast<float>(xCellsCount)),
+		yLen(static_cast<float>(yMax) / static_cast<float>(yCellsCount)){}
 
 	void initializeGrid();
-	void addParticleToGridCell(const std::uint32_t i, const glm::vec2 position);
-	void clearGridCells();
+	void addParticleToGridCell(const std::uint32_t i, const glm::vec2 position) noexcept;
+	void clearGridCells() noexcept;
 
-	GridCellsT& getGridCells()
+	const GridCellsT& getGridCells()
 	{
 		return gridCells;
 	}
 
-	BorderCellsIdsT& getBorderCellsIds()
+	const std::uint32_t getXCellsCount()
 	{
-		return borderCellsIds;
+		return xCellsCount;
+	}
+
+	const std::uint32_t getYCellsCount()
+	{
+		return yCellsCount;
 	}
 };
 #endif

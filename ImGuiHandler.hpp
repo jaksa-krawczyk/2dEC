@@ -63,15 +63,19 @@ class ImGuiHandler
 		{
 			ImGui::Begin("Control panel");
 			ImGui::Checkbox("Show velocity statistics", &showHistograms);
+			ImGui::BeginDisabled(pause);
 			if (ImGui::Button("Pause simulation"))
 			{
 				pause = true;
 			}
+			ImGui::EndDisabled();
 			ImGui::SameLine();
+			ImGui::BeginDisabled(!pause);
 			if (ImGui::Button("Resume simulation"))
 			{
 				pause = false;
 			}
+			ImGui::EndDisabled();
 			ImGui::Text("Simulation average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
 		}

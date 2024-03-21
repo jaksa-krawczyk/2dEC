@@ -2,7 +2,7 @@
 
 int main()
 {
-	World<800, 640> world;
+	World<1600, 900> world;
 
 	if (world.initializeWorld())
 	{

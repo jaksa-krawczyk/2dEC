@@ -77,12 +77,83 @@ private:
 		}
 	}
 
-	void resolveCellBoundary(auto& cellParticles, const float deltaSubStep) noexcept
+	void resolveWallsCollisions(auto& cellParticles, const float deltaSubStep) noexcept
 	{
 		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
 		{
 			checkXCollisions(cellParticles[i], deltaSubStep);
 			checkYCollisions(cellParticles[i], deltaSubStep);
+		}
+	}
+
+	void resolveHorizontalWallCollisions(auto& cellParticles, const float deltaSubStep) noexcept
+	{
+		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
+		{
+			checkYCollisions(cellParticles[i], deltaSubStep);
+		}
+	}
+
+	void resolveVerticalWallCollisions(auto& cellParticles, const float deltaSubStep) noexcept
+	{
+		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
+		{
+			checkXCollisions(cellParticles[i], deltaSubStep);
+		}
+	}
+
+	void resolveBoundaryCells(const auto& gridCells, const std::uint32_t columns, std::uint32_t rows, const float deltaSubStep) noexcept
+	{
+		//bottom left corner
+		resolveCellCollisions(gridCells[0], gridCells[0], deltaSubStep);
+		resolveWallsCollisions(gridCells[0], deltaSubStep);
+
+		//bottom
+		std::uint32_t i = 1;
+		for (; i < columns - 1; ++i)
+		{
+			resolveCellCollisions(gridCells[i], gridCells[i - 1], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i + 1], deltaSubStep);
+			resolveHorizontalWallCollisions(gridCells[i], deltaSubStep);
+		}
+
+		//bottom right corner
+		resolveCellCollisions(gridCells[columns - 1], gridCells[columns - 1], deltaSubStep);
+		resolveWallsCollisions(gridCells[columns - 1], deltaSubStep);
+
+		//left
+		for (++i; i < rows * columns - columns; i += columns)
+		{
+			resolveCellCollisions(gridCells[i], gridCells[i - columns], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i + columns], deltaSubStep);
+			resolveVerticalWallCollisions(gridCells[i], deltaSubStep);
+		}
+
+		//top left corner
+		resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+		resolveWallsCollisions(gridCells[i], deltaSubStep);
+
+		for (++i; i < rows * columns - 1; ++i)
+		{
+			resolveCellCollisions(gridCells[i], gridCells[i - 1], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i + 1], deltaSubStep);
+			resolveHorizontalWallCollisions(gridCells[i], deltaSubStep);
+		}
+
+		//top right corner
+		resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+		resolveWallsCollisions(gridCells[i], deltaSubStep);
+
+		//right
+		for (i -= columns; i > columns; i -= columns)
+		{
+			resolveCellCollisions(gridCells[i], gridCells[i - columns], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i], deltaSubStep);
+			resolveCellCollisions(gridCells[i], gridCells[i + columns], deltaSubStep);
+			resolveVerticalWallCollisions(gridCells[i], deltaSubStep);
 		}
 	}
 
@@ -179,7 +250,7 @@ private:
 		}
 		positions[i] -= collisionTime * velocities[i];
 		positions[j] -= collisionTime * velocities[j];
-
+		
 		updateNewVelocities(i, j);
 
 		float afterCollisionTime = deltaSubStep - collisionTime;
@@ -187,33 +258,61 @@ private:
 		positions[j] += afterCollisionTime * velocities[j];
 	}
 
-	void resolveCellConflicts(auto& cellParticles, const float deltaSubStep) noexcept
+	void resolveCellCollisions(const auto& cell, const auto& adjacentCell, const float deltaSubStep) noexcept
 	{
-		for (std::uint32_t i = 0; i < cellParticles.size(); ++i)
+		for (std::uint32_t i = 0; i < cell.size(); ++i)
 		{
-			for (std::uint32_t j = 0; j < cellParticles.size(); ++j)
+			for (std::uint32_t j = 0; j < adjacentCell.size(); ++j)
 			{
-				if (float d = glm::distance(positions[cellParticles[i]], positions[cellParticles[j]]); i != j && d < 2.f * CIRCLE_RADIUS)
+				if (cell[i] != adjacentCell[j])
 				{
-					updateAfterCollision(cellParticles[i], cellParticles[j], deltaSubStep, d);
+					if (float d = glm::distance(positions[cell[i]], positions[adjacentCell[j]]); d < 2.f * CIRCLE_RADIUS)
+					{
+						updateAfterCollision(cell[i], adjacentCell[j], deltaSubStep, d);
+					}
 				}
 			}
 		}
 	}
 
-	void resolveConflicts(const float deltaSubStep) noexcept
+	void resolveCollisions(const float deltaSubStep) noexcept
 	{
-		auto& gridCells = grid.getGridCells();
+		const auto& gridCells = grid.getGridCells();
+		const std::uint32_t columns = grid.getXCellsCount();
+		const std::uint32_t rows = grid.getYCellsCount();
 
-		for (auto& cell : gridCells)
+		for (std::uint32_t i = 1; i < rows - 1; ++i)
 		{
-			resolveCellConflicts(cell, deltaSubStep);
+			for (std::uint32_t j = 1; j < columns - 1; ++j)
+			{
+				/*
+				Iterating over all "inside" cells and checking conflicts with neighbouring cells, example 4x4:
+														11 12 13 14
+														8  9  10 11
+														4  5  6  7
+														0  1  2  3
+				currentCellId takes values: 5, 6, 9, 10. For currentCellId = 5, checks for:
+														8 9 10
+														4 5 6
+														0 1 2
+				*/
+				const std::uint32_t currentCellId = i * columns + j;
+
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId - (columns - 1)], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId - columns], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId - (columns + 1)], deltaSubStep);
+
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId - 1], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId + 1], deltaSubStep);
+
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId + (columns - 1)], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId + columns], deltaSubStep);
+				resolveCellCollisions(gridCells[currentCellId], gridCells[currentCellId + (columns + 1)], deltaSubStep);
+			}
 		}
 
-		for (auto borderCellId : grid.getBorderCellsIds())
-		{
-			resolveCellBoundary(gridCells[borderCellId], deltaSubStep);
-		}
+		resolveBoundaryCells(gridCells, columns, rows, deltaSubStep);
 	}
 
 public:
@@ -254,8 +353,8 @@ public:
 		std::uniform_real_distribution<float> velYDistr(vyMin, vyMax);
 		for (auto& velocity : velocities)
 		{
-			velocity.x = 25.f;// fabs(velXDistr(engine));
-			velocity.y = 0.f;// velYDistr(engine);
+			velocity.x = velXDistr(engine);
+			velocity.y = velYDistr(engine);
 		}
 
 		grid.initializeGrid();
@@ -275,7 +374,7 @@ public:
 				grid.addParticleToGridCell(i, positions[i]);
 			}
 
-			resolveConflicts(deltaSubStep);
+			resolveCollisions(deltaSubStep);
 		}
 	}
 };
