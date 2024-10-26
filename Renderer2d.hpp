@@ -53,7 +53,7 @@ private:
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 		glEnableVertexAttribArray(0);
 
-		indices.reserve(3 * (TRIANGLES_PER_CIRCLE - 2) * positions.size());
+		indices.reserve(VERTICES_PER_CIRCLE * positions.size());
 		for (std::uint32_t j = 0; j < positions.size(); ++j)
 		{
 			std::uint32_t index = j * TRIANGLES_PER_CIRCLE;
@@ -67,7 +67,7 @@ private:
 
 		glGenBuffers(1, &indexBuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), &indices[0], GL_DYNAMIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), &indices[0], GL_STATIC_DRAW);
 
 		auto programId = shader.getProgramId();
 		if (programId)
