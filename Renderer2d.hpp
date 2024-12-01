@@ -32,6 +32,7 @@ private:
 	GLuint vertexBuffer, vertexArray, indexBuffer;
 
 	Shaders shader;
+	std::array<glm::vec2, TRIANGLES_PER_CIRCLE> circlePoints;
 	std::vector<glm::vec2> circleVerticies;
 	std::vector<std::uint32_t> indices;
 
@@ -40,7 +41,7 @@ private:
 	bool prepareBuffersAndShaders()
 	{
 		const std::uint32_t nrOfVertices = TRIANGLES_PER_CIRCLE * positions.size();
-		circleVerticies.reserve(nrOfVertices);
+		circleVerticies = std::vector<glm::vec2>(nrOfVertices);
 		std::cout << "Numbers of particles: " << positions.size() << "\n";
 
 		glGenVertexArrays(1, &vertexArray);
@@ -65,6 +66,15 @@ private:
 			}
 		}
 
+		const float radius_x = CIRCLE_RADIUS * 2.f / xMax;
+		const float radius_y = CIRCLE_RADIUS * 2.f / yMax;
+		constexpr float angle = 2.f * std::numbers::pi_v<float> / TRIANGLES_PER_CIRCLE;
+		for (std::uint32_t i = 0; i < TRIANGLES_PER_CIRCLE; ++i)
+		{
+			float currentAngle = i * angle;
+			circlePoints[i] = { radius_x * cosf(currentAngle), radius_y * sinf(currentAngle) };
+		}
+
 		glGenBuffers(1, &indexBuffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), &indices[0], GL_STATIC_DRAW);
@@ -82,23 +92,18 @@ private:
 	{
 		const float xScale = xMax / 2.f;
 		const float yScale = yMax / 2.f;
-		const float radius_x = CIRCLE_RADIUS * 2.f / xMax;
-		const float radius_y = CIRCLE_RADIUS * 2.f / yMax;
-		const float angle = 2.f * std::numbers::pi_v<float> / TRIANGLES_PER_CIRCLE;
 
-		circleVerticies.clear();
-		for (const auto& circleCenter : positions)
+		std::uint32_t j = 0, k = 0;
+		glm::vec2 center = { (positions[0].x - xScale) / xScale, (positions[0].y - yScale) / yScale };
+		for (std::uint32_t i = 0; i < circleVerticies.size(); ++i)
 		{
-			float x_center = (circleCenter.x - xScale) / xScale;
-			float y_center = (circleCenter.y - yScale) / yScale;
-
-			for (std::uint32_t i = 0; i < TRIANGLES_PER_CIRCLE; ++i)
+			circleVerticies[i] = circlePoints[k] + center;
+			++k;
+			if (k != 0 && k % TRIANGLES_PER_CIRCLE == 0)
 			{
-				float currentAngle = i * angle;
-				float x = radius_x * cosf(currentAngle) + x_center;
-				float y = radius_y * sinf(currentAngle) + y_center;
-
-				circleVerticies.push_back(glm::vec2(x, y));
+				++j;
+				center = { (positions[j].x - xScale) / xScale, (positions[j].y - yScale) / yScale };
+				k = 0;
 			}
 		}
 	}
